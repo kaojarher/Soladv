@@ -1,52 +1,255 @@
-
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>衛兵地牢闖關</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-#gr{font-family:'Courier New',monospace;background:#111;color:#eee;padding:8px;width:100%;}
-#hud{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px;}
-.hs{background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:5px 8px;font-size:11px;display:flex;align-items:center;gap:5px;}
-.hp-bar{flex:1;height:8px;background:#2a2a2a;border-radius:3px;overflow:hidden;}
-.hp-fill{height:100%;background:#e24b4a;transition:width .3s;}
-#board-wrap{position:relative;width:100%;}
-#board{display:grid;gap:1px;background:#222;border:2px solid #444;border-radius:6px;padding:4px;margin:0 auto;}
-.cell{display:flex;align-items:center;justify-content:center;border-radius:3px;cursor:default;position:relative;transition:background .12s;overflow:hidden;}
-.cell.floor{background:#181818;}
-.cell.wall{background:#252525;border:1px solid #333;}
-.cell.door{background:#181818;}
-.cell.hl{background:#1e2d1e;cursor:pointer;}
+:root{
+  --font-mono:'Courier New',monospace;
+  --c-bg:#111;--c-surface:#1a1a1a;--c-border:#333;
+  --c-text:#eee;--c-dim:#999;
+  --c-wall:#252525;--c-floor:#181818;--c-player:#18182a;--c-hl:#1e2d1e;
+  --c-hp:#e24b4a;--c-en-hp:#e2944a;--c-mp:#4a8ae2;
+  --c-log-bg:#0d0d0d;--c-map-bg:#0d0d0d;
+  --js-size:120px;--js-stick-size:48px;
+}
+html,body{width:100%;height:100%;background:var(--c-bg);}
+#gr{font-family:var(--font-mono);background:var(--c-bg);color:var(--c-text);
+  padding:8px;width:100%;max-width:520px;margin:0 auto;
+  min-height:100vh;display:flex;flex-direction:column;gap:6px;}
+
+/* HUD */
+#hud{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+.hs{background:var(--c-surface);border:1px solid var(--c-border);border-radius:6px;
+  padding:5px 8px;font-size:11px;display:flex;align-items:center;gap:5px;min-width:0;}
+.hp-bar{flex:1;height:8px;background:#2a2a2a;border-radius:3px;overflow:hidden;min-width:0;}
+.hp-fill{height:100%;background:var(--c-hp);transition:width .3s;}
+.mp-bar{flex:1;height:6px;background:#1a2a3a;border-radius:3px;overflow:hidden;min-width:0;}
+.mp-fill{height:100%;background:var(--c-mp);transition:width .3s;}
+
+/* Board */
+#board-wrap{position:relative;width:100%;display:flex;justify-content:center;}
+#board{display:grid;gap:1px;background:#222;border:2px solid #444;border-radius:6px;padding:4px;flex-shrink:0;}
+.cell{display:flex;align-items:center;justify-content:center;border-radius:3px;
+  cursor:default;position:relative;transition:background .12s;overflow:hidden;}
+.cell.floor{background:var(--c-floor);}
+.cell.wall{background:var(--c-wall);border:1px solid var(--c-border);}
+.cell.door{background:var(--c-floor);}
+.cell.hl{background:var(--c-hl);cursor:pointer;}
 .cell.hl:active{background:#2d3d2d;}
-.cell.pl{background:#18182a;}
+.cell.pl{background:var(--c-player);}
+.cell.in-battle{outline:2px solid #e2944a;outline-offset:-2px;animation:pulse-enemy .8s infinite alternate;}
+@keyframes pulse-enemy{from{outline-color:#e2944a;}to{outline-color:#f5c842;}}
 .cell-inner{display:flex;align-items:center;justify-content:center;width:100%;height:100%;}
-#log{margin-top:6px;background:#0d0d0d;border:1px solid #2a2a2a;border-radius:6px;padding:6px 8px;font-size:11px;color:#999;height:44px;overflow-y:auto;}
+
+/* Log */
+#log{background:var(--c-log-bg);border:1px solid #2a2a2a;border-radius:6px;
+  padding:6px 8px;font-size:11px;color:var(--c-dim);height:52px;overflow-y:auto;flex-shrink:0;}
 #log p{margin-bottom:1px;}
-#minimap-wrap{margin-top:8px;background:#0d0d0d;border:1px solid #2a2a2a;border-radius:6px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:4px;}
-#minimap-label{font-size:10px;color:#555;align-self:flex-start;width:100%;display:flex;justify-content:space-between;}
-#minimap-canvas{display:block;}
-#joystick-area{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:0 8px;}
-#js-wrap{position:relative;width:120px;height:120px;flex-shrink:0;}
-#js-base{width:120px;height:120px;border-radius:50%;background:#1a1a1a;border:2px solid #3a3a3a;position:absolute;top:0;left:0;}
-#js-stick{width:48px;height:48px;border-radius:50%;background:#2e2e2e;border:2px solid #555;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);cursor:grab;touch-action:none;}
+#log .battle-line{color:#f5c842;}
+#log .dmg-line{color:#f55;}
+#log .heal-line{color:#5f5;}
+#log .skill-line{color:#4af;}
+#log .escape-line{color:#aaa;}
+
+/* Minimap */
+#minimap-wrap{background:var(--c-map-bg);border:1px solid #2a2a2a;border-radius:6px;
+  padding:8px;display:flex;flex-direction:column;align-items:center;gap:4px;}
+#minimap-label{font-size:10px;color:#555;align-self:flex-start;}
+#minimap-canvas{display:block;width:100%;max-width:340px;height:auto;}
+
+/* Joystick */
+#joystick-area{display:flex;align-items:center;justify-content:space-between;padding:0 8px;flex-shrink:0;}
+#js-wrap{position:relative;width:var(--js-size);height:var(--js-size);flex-shrink:0;}
+#js-base{width:var(--js-size);height:var(--js-size);border-radius:50%;
+  background:var(--c-surface);border:2px solid #3a3a3a;position:absolute;top:0;left:0;}
+#js-stick{width:var(--js-stick-size);height:var(--js-stick-size);border-radius:50%;
+  background:#2e2e2e;border:2px solid #555;position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);cursor:grab;touch-action:none;}
 #side-btns{display:flex;flex-direction:column;gap:8px;}
-#side-btns button{background:#1a1a1a;color:#bbb;border:1px solid #383838;border-radius:8px;padding:10px 14px;font-size:12px;cursor:pointer;touch-action:manipulation;white-space:nowrap;}
+#side-btns button{background:var(--c-surface);color:#bbb;border:1px solid #383838;
+  border-radius:8px;padding:10px 14px;font-size:12px;cursor:pointer;
+  touch-action:manipulation;white-space:nowrap;}
 #side-btns button:active{background:#2a2a2a;transform:scale(0.95);}
-.float-dmg{position:absolute;top:-4px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;animation:fup .65s forwards;pointer-events:none;z-index:9;white-space:nowrap;}
-.rd{color:#f55;}.gn{color:#5f5;}.yl{color:#fd4;}
-@keyframes fup{0%{opacity:1;transform:translateX(-50%) translateY(0)}100%{opacity:0;transform:translateX(-50%) translateY(-22px)}}
-#ov{background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px;border-radius:6px;min-height:200px;}
+
+/* Float dmg */
+.float-dmg{position:absolute;top:-4px;left:50%;transform:translateX(-50%);
+  font-size:11px;font-weight:700;animation:fup .65s forwards;
+  pointer-events:none;z-index:9;white-space:nowrap;}
+.rd{color:#f55;}.gn{color:#5f5;}.bl{color:#4af;}.yw{color:#f5c842;}
+@keyframes fup{
+  0%{opacity:1;transform:translateX(-50%) translateY(0);}
+  100%{opacity:0;transform:translateX(-50%) translateY(-20px);}
+}
+
+/* Overlay */
+#ov{background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:10px;padding:20px;border-radius:6px;min-height:200px;
+  position:absolute;inset:0;z-index:10;}
 #ov h2{font-size:22px;color:#ffd700;}
 #ov p{font-size:12px;color:#aaa;text-align:center;}
-#ov button{margin-top:6px;padding:10px 22px;background:#2a2a2a;color:#eee;border:1px solid #555;border-radius:8px;font-size:13px;cursor:pointer;}
-</style>
+#ov button{margin-top:6px;padding:10px 22px;background:#2a2a2a;color:var(--c-text);
+  border:1px solid #555;border-radius:8px;font-size:13px;cursor:pointer;}
 
-<h2 class="sr-only">衛兵地牢闖關 — 拯救人質、收集金幣</h2>
+/* ══════════════════════════════
+   回合制戰鬥面板
+══════════════════════════════ */
+#battle-panel{
+  display:none;
+  flex-direction:column;
+  gap:6px;
+  background:#0f1a0f;
+  border:2px solid #3a6a3a;
+  border-radius:10px;
+  padding:10px;
+  animation:slide-in .2s ease-out;
+}
+#battle-panel.active{display:flex;}
+@keyframes slide-in{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* 敵方資訊列 */
+#battle-enemy-bar{display:flex;align-items:center;gap:8px;padding:4px 0;}
+#battle-enemy-icon{font-size:26px;line-height:1;flex-shrink:0;}
+#battle-enemy-info{flex:1;min-width:0;}
+#battle-enemy-name{font-size:12px;color:#f5c842;font-weight:700;margin-bottom:3px;}
+#battle-enemy-hpbar{height:8px;background:#2a1a1a;border-radius:3px;overflow:hidden;}
+#battle-enemy-hpfill{height:100%;background:var(--c-en-hp);transition:width .4s;}
+#battle-enemy-hptext{font-size:10px;color:#aaa;margin-top:2px;}
+
+/* 戰鬥狀態列 */
+#battle-status-row{display:flex;gap:6px;flex-wrap:wrap;}
+.status-tag{font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid;}
+.status-tag.burn{color:#f84;border-color:#f84;}
+.status-tag.stun{color:#8af;border-color:#8af;}
+.status-tag.regen{color:#5f5;border-color:#5f5;}
+.status-tag.shield{color:#fd0;border-color:#fd0;}
+
+/* 回合指示 */
+#turn-indicator{text-align:center;font-size:11px;color:#888;padding:2px 0;
+  letter-spacing:1px;text-transform:uppercase;}
+#turn-indicator.player-turn{color:#5f5;}
+#turn-indicator.enemy-turn{color:#f84;}
+
+/* 行動按鈕群 */
+#battle-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.ba-btn{
+  padding:9px 6px;border-radius:8px;font-size:12px;font-family:var(--font-mono);
+  cursor:pointer;border:1px solid;display:flex;align-items:center;
+  justify-content:center;gap:4px;transition:all .12s;
+  touch-action:manipulation;
+}
+.ba-btn:disabled{opacity:.35;cursor:not-allowed;transform:none!important;}
+.ba-btn:not(:disabled):active{transform:scale(0.95);}
+.ba-btn.attack{background:#2a1010;color:#f55;border-color:#5a2020;}
+.ba-btn.attack:not(:disabled):hover{background:#3a1515;}
+.ba-btn.skill{background:#101a2a;color:#4af;border-color:#1a3a5a;}
+.ba-btn.skill:not(:disabled):hover{background:#152030;}
+.ba-btn.item{background:#1a2010;color:#8f8;border-color:#2a4a1a;}
+.ba-btn.item:not(:disabled):hover{background:#202a15;}
+.ba-btn.flee{background:#1a1a1a;color:#aaa;border-color:#3a3a3a;}
+.ba-btn.flee:not(:disabled):hover{background:#242424;}
+
+/* 技能子選單 */
+#skill-menu{display:none;grid-template-columns:1fr 1fr;gap:5px;margin-top:4px;}
+#skill-menu.open{display:grid;}
+.sk-btn{padding:7px 5px;border-radius:6px;font-size:11px;font-family:var(--font-mono);
+  cursor:pointer;border:1px solid #1a3a5a;background:#0d1a2a;color:#8cf;
+  touch-action:manipulation;text-align:center;}
+.sk-btn:disabled{opacity:.35;cursor:not-allowed;}
+.sk-btn .cost{font-size:9px;color:#4af;display:block;margin-top:1px;}
+
+/* 響應式 */
+@media(min-width:600px){
+  .hs{font-size:13px;padding:6px 10px;}
+  #log{font-size:12px;height:60px;}
+  :root{--js-size:140px;--js-stick-size:56px;}
+  #side-btns button{font-size:13px;padding:12px 18px;}
+  #battle-enemy-icon{font-size:32px;}
+  #battle-enemy-name{font-size:13px;}
+  .ba-btn{font-size:13px;padding:11px 8px;}
+}
+@media(max-width:360px){
+  :root{--js-size:100px;--js-stick-size:40px;}
+  #side-btns button{font-size:11px;padding:8px 10px;}
+  .ba-btn{font-size:11px;padding:8px 4px;}
+}
+@media(max-height:500px) and (orientation:landscape){
+  #gr{flex-direction:row;flex-wrap:wrap;align-items:flex-start;max-width:100%;padding:4px;gap:4px;}
+  #hud{width:100%;}
+  #board-wrap{flex:0 0 auto;}
+  #log{flex:1 1 140px;height:80px;}
+  #minimap-wrap{flex:1 1 140px;}
+  #joystick-area{flex:0 0 auto;padding:0 4px;}
+  #battle-panel{width:100%;}
+  :root{--js-size:100px;--js-stick-size:40px;}
+}
+@media(prefers-reduced-motion:reduce){
+  .float-dmg{animation:none;opacity:0;}
+  .hp-fill,.mp-fill,.ba-btn{transition:none;}
+  #battle-panel{animation:none;}
+  .cell.in-battle{animation:none;}
+}
+</style>
+</head>
+<body>
 <div id="gr">
   <div id="hud">
-    <div class="hs"><span style="font-size:15px;">💂🏼</span><div class="hp-bar"><div class="hp-fill" id="hpb"></div></div><span id="hpt" style="font-size:11px;"></span></div>
-    <div class="hs" style="gap:6px;">⚔️<span id="atkt">4</span>&nbsp;💰<span id="goldt">0</span>&nbsp;🏆<span id="scoret">0</span></div>
+    <div class="hs">
+      <span style="font-size:16px;">💂🏼</span>
+      <div style="flex:1;min-width:0;">
+        <div class="hp-bar"><div class="hp-fill" id="hpb"></div></div>
+        <div style="height:2px;"></div>
+        <div class="mp-bar"><div class="mp-fill" id="mpb"></div></div>
+      </div>
+      <span id="hpt" style="font-size:10px;white-space:nowrap;"></span>
+    </div>
+    <div class="hs" style="gap:6px;flex-wrap:wrap;">
+      ⚔️<span id="atkt">4</span>&nbsp;🏆<span id="flrt">1</span>&nbsp;🗝️<span id="keyt">0</span>&nbsp;🧪<span id="pott">0</span>
+    </div>
   </div>
+
   <div id="board-wrap"><div id="board"></div></div>
   <div id="log"></div>
+
+  <!-- ══ 回合制戰鬥面板 ══ -->
+  <div id="battle-panel">
+    <div id="battle-enemy-bar">
+      <div id="battle-enemy-icon">👻</div>
+      <div id="battle-enemy-info">
+        <div id="battle-enemy-name">幽靈</div>
+        <div id="battle-enemy-hpbar"><div id="battle-enemy-hpfill" style="width:100%"></div></div>
+        <div id="battle-enemy-hptext">HP: 4 / 4</div>
+      </div>
+    </div>
+    <div id="battle-status-row"></div>
+    <div id="turn-indicator" class="player-turn">⚡ 你的回合</div>
+    <div id="battle-actions">
+      <button class="ba-btn attack" id="btn-attack" onclick="battleAction('attack')">⚔️ 攻擊</button>
+      <button class="ba-btn skill"  id="btn-skill"  onclick="toggleSkillMenu()">✨ 技能 ▾</button>
+      <button class="ba-btn item"   id="btn-item"   onclick="battleAction('item')">🧪 道具</button>
+      <button class="ba-btn flee"   id="btn-flee"   onclick="battleAction('flee')">💨 逃跑</button>
+    </div>
+    <div id="skill-menu">
+      <button class="sk-btn" id="sk-slash"  onclick="battleAction('slash')">
+        ⚔️ 斬擊 <span class="cost">2× ATK | 0 MP</span>
+      </button>
+      <button class="sk-btn" id="sk-fire"   onclick="battleAction('fire')">
+        🔥 火焰術 <span class="cost">灼燒3回合 | 3 MP</span>
+      </button>
+      <button class="sk-btn" id="sk-guard"  onclick="battleAction('guard')">
+        🛡️ 防禦姿態 <span class="cost">護盾1回合 | 2 MP</span>
+      </button>
+      <button class="sk-btn" id="sk-regen"  onclick="battleAction('regen')">
+        💚 恢復術 <span class="cost">回復3回合 | 4 MP</span>
+      </button>
+    </div>
+  </div>
+  <!-- ═════════════════════════ -->
+
   <div id="minimap-wrap">
-    <div id="minimap-label"><span>探索地圖｜房間 <span id="flrt">1</span></span><span>救援 <span id="rescuet">0</span> 人</span></div>
+    <div id="minimap-label">探索地圖</div>
     <canvas id="minimap-canvas" width="220" height="110"></canvas>
   </div>
   <div id="joystick-area">
@@ -62,23 +265,68 @@
 </div>
 
 <script>
+/* ══════════════════════════════
+   常數 & 全域狀態
+══════════════════════════════ */
 const COLS=7,ROWS=7;
-const CIVILIANS=['👩','👧','🧒','👩‍🦳','👧🏽','🧒🏻'];
-const EM={ghost:'👻',skeleton:'💀',chest:'📦',purse:'💰',boss:'👹',potion:'🧪'};
-let S=null,cellPx=44;
-let mapData={};
-let currentRoomKey='0,0';
+const EM={ghost:'👻',skeleton:'💀',chest:'📦',key:'🗝️',boss:'👹',potion:'🧪'};
+let S=null, cellPx=44;
+let mapData={}, currentRoomKey='0,0';
+
+/* ── 回合制戰鬥狀態 ── */
+let BS=null; // Battle State
+/*
+  BS = {
+    er, ec,        // 敵人格座標
+    en,            // 敵人種類 key
+    name, icon,    // 顯示用
+    ehp, emhp,     // 敵方當前/最大HP
+    turn,          // 'player' | 'enemy'
+    playerStatus,  // {burn,stun,regen,shield} (回合數)
+    enemyStatus,
+    escaped,       // 逃跑旗
+    skillMenuOpen,
+  }
+*/
+
+const ENEMY_DATA = {
+  ghost:    {name:'👻 幽靈',   mhp:8,   atk:[2,4],  xp:5,  burn:false},
+  skeleton: {name:'💀 骷髏',   mhp:14,  atk:[3,6],  xp:8,  burn:false},
+  boss:     {name:'👹 魔王',   mhp:40,  atk:[6,12], xp:25, burn:false},
+};
+
+const SKILLS = {
+  slash: {name:'斬擊', mpCost:0},
+  fire:  {name:'火焰術', mpCost:3},
+  guard: {name:'防禦姿態', mpCost:2},
+  regen: {name:'恢復術', mpCost:4},
+};
 
 function roomKey(x,y){return x+','+y;}
+
+/* ══════════════════════════════
+   尺寸計算
+══════════════════════════════ */
 function calcSize(){
   const wrap=document.getElementById('board-wrap');
-  const avail=Math.min(wrap.offsetWidth||320,380)-16;
-  cellPx=Math.floor((avail-10)/COLS);
+  const avail=Math.min(wrap.offsetWidth||320,420)-16;
+  cellPx=Math.max(30,Math.floor((avail-10)/COLS));
   const board=document.getElementById('board');
   board.style.gridTemplateColumns=`repeat(${COLS},${cellPx}px)`;
   board.style.gridTemplateRows=`repeat(${ROWS},${cellPx}px)`;
+  syncMinimapSize();
+}
+function syncMinimapSize(){
+  const canvas=document.getElementById('minimap-canvas');
+  const wrap=document.getElementById('minimap-wrap');
+  const w=Math.min(wrap.offsetWidth-24,340);
+  canvas.width=Math.round(w);
+  canvas.height=Math.round(w*(110/220));
 }
 
+/* ══════════════════════════════
+   地圖生成
+══════════════════════════════ */
 const DIRS={N:{r:0,c:3},S:{r:6,c:3},W:{r:3,c:0},E:{r:3,c:6}};
 const DIR_ENTER={N:'S',S:'N',W:'E',E:'W'};
 const DRVEC={N:[-1,0],S:[1,0],W:[0,-1],E:[0,1]};
@@ -98,32 +346,28 @@ function mkLevel(lvl,openDirs,enterDir){
   });
   let pp;
   if(enterDir){
-    const ed=DIRS[enterDir];
-    pp={r:ed.r,c:ed.c};
-    const vecs={N:[1,0],S:[-1,0],W:[0,1],E:[0,-1]};
-    const[dr,dc]=vecs[enterDir]||[0,0];
-    const nr=pp.r+dr,nc=pp.c+dc;
-    if(nr>0&&nr<ROWS-1&&nc>0&&nc<COLS-1)pp={r:nr,c:nc};
-  } else {
-    pp={r:ROWS-2,c:Math.floor(COLS/2)};
-  }
+    const ed=DIRS[enterDir]; pp={r:ed.r,c:ed.c};
+    const adj=getAdj(pp.r,pp.c,enterDir); if(adj)pp=adj;
+  }else{pp={r:ROWS-2,c:Math.floor(COLS/2)};}
   grid[pp.r][pp.c].entity='player';
   const ne=2+Math.floor(lvl*0.7);
   for(let i=0;i<ne;i++){
-    const k=lvl>=4?(Math.random()<.25?'boss':Math.random()<.5?'skeleton':'ghost'):(Math.random()<.5?'ghost':'skeleton');
+    const k=lvl>=4?(Math.random()<.25?'boss':Math.random()<.5?'skeleton':'ghost')
+                  :(Math.random()<.5?'ghost':'skeleton');
     place(grid,k,pp,2);
   }
-  if(Math.random()<0.75)place(grid,'chest',pp,1);
-  if(Math.random()<0.65)place(grid,'potion',pp,0);
-  if(Math.random()<0.8)place(grid,'purse',pp,1);
-  const numCivil=Math.random()<0.7?1:Math.random()<0.5?2:0;
-  for(let i=0;i<numCivil;i++){
-    const civ=CIVILIANS[Math.floor(Math.random()*CIVILIANS.length)];
-    place(grid,'civ:'+civ,pp,1);
-  }
+  if(Math.random()<0.7)place(grid,'chest',pp,1);
+  if(Math.random()<0.6)place(grid,'potion',pp,0);
+  if(Math.random()<0.5)place(grid,'key',pp,1);
   return{grid,pp,openDirs};
 }
-
+function getAdj(r,c,dir){
+  const vecs={N:[1,0],S:[-1,0],W:[0,1],E:[0,-1]};
+  const[dr,dc]=vecs[dir]||[0,0];
+  const nr=r+dr,nc=c+dc;
+  if(nr>0&&nr<ROWS-1&&nc>0&&nc<COLS-1)return{r:nr,c:nc};
+  return null;
+}
 function place(grid,kind,avoid,minD){
   for(let a=0;a<300;a++){
     const r=1+Math.floor(Math.random()*(ROWS-2));
@@ -134,48 +378,61 @@ function place(grid,kind,avoid,minD){
     }
   }
 }
-
-function randomDirs(fromDir){
+function randomDirs(exclude){
   const all=['N','S','W','E'];
-  const others=all.filter(d=>d!==fromDir);
+  const filtered=all.filter(d=>d!==exclude);
   const n=1+Math.floor(Math.random()*3);
-  const chosen=others.sort(()=>Math.random()-0.5).slice(0,n);
-  if(!chosen.includes(fromDir))chosen.push(fromDir);
+  const chosen=filtered.sort(()=>Math.random()-0.5).slice(0,n);
+  if(!chosen.includes(exclude)&&exclude)chosen.push(exclude);
   return[...new Set(chosen)];
 }
 
-function initRoom(rx,ry,enterDir,gs){
+/* ══════════════════════════════
+   房間初始化
+══════════════════════════════ */
+function initRoom(rx,ry,enterDir,globalState){
+  closeBattlePanel();
   const key=roomKey(rx,ry);
   let roomState;
   if(mapData[key]&&mapData[key].visited){
     roomState=mapData[key];
-  } else {
+  }else{
     const isFirst=!enterDir;
-    let openDirs=isFirst?['N','S','W','E']:randomDirs(enterDir);
-    if(!openDirs.includes(enterDir)&&enterDir)openDirs.push(enterDir);
-    const lvl=gs?gs.totalRooms+1:1;
-    roomState={...mkLevel(lvl,openDirs,enterDir),rx,ry,visited:true,openDirs};
+    let openDirs;
+    if(isFirst){openDirs=['N','S','W','E'];}
+    else{
+      openDirs=randomDirs(enterDir);
+      if(!openDirs.includes(enterDir))openDirs.push(enterDir);
+    }
+    const level=globalState?globalState.totalRooms+1:1;
+    roomState={...mkLevel(level,openDirs,enterDir),rx,ry,visited:true,openDirs,cleared:false};
     mapData[key]=roomState;
   }
   currentRoomKey=key;
   S={
     grid:roomState.grid,
     pp:{...roomState.pp},
-    hp:gs?gs.hp:20,
-    mhp:gs?gs.mhp:20,
-    atk:gs?gs.atk:4,
-    gold:gs?gs.gold:0,
-    score:gs?gs.score:0,
-    rescued:gs?gs.rescued:0,
-    totalRooms:gs?gs.totalRooms+1:1,
+    hp:globalState?globalState.hp:20,
+    mhp:globalState?globalState.mhp:20,
+    mp:globalState?globalState.mp:10,
+    mmp:globalState?globalState.mmp:10,
+    atk:globalState?globalState.atk:4,
+    keys:globalState?globalState.keys:0,
+    potions:globalState?globalState.potions:0,
+    totalRooms:globalState?globalState.totalRooms+1:1,
     rx,ry,openDirs:roomState.openDirs
   };
   render();drawMinimap();
-  addLog(`🚪 進入房間(${rx},${ry}) — 第${S.totalRooms}間`,true);
+  addLog(`🚪 進入房間 (${rx},${ry}) — 第${S.totalRooms}間`,true);
+}
+function globalStateSnapshot(){
+  return{hp:S.hp,mhp:S.mhp,mp:S.mp,mmp:S.mmp,
+         atk:S.atk,keys:S.keys,potions:S.potions,totalRooms:S.totalRooms};
 }
 
-function gsSnap(){return{hp:S.hp,mhp:S.mhp,atk:S.atk,gold:S.gold,score:S.score,rescued:S.rescued,totalRooms:S.totalRooms};}
-
+/* ══════════════════════════════
+   渲染
+══════════════════════════════ */
 function render(){
   const board=document.getElementById('board');
   board.innerHTML='';
@@ -187,46 +444,39 @@ function render(){
       const cell=grid[r][c];
       const isP=pp.r===r&&pp.c===c;
       const canM=moves.some(m=>m.r===r&&m.c===c);
+      const inBattle=BS&&BS.er===r&&BS.ec===c;
       const d=document.createElement('div');
-      d.className='cell '+(isP?'pl':cell.type)+(canM?' hl':'');
+      d.className='cell '+(isP?'pl':cell.type)+(canM?' hl':'')+(inBattle?' in-battle':'');
       d.style.width=cellPx+'px';d.style.height=cellPx+'px';
       const inner=document.createElement('div');
       inner.className='cell-inner';inner.style.fontSize=efs+'px';
       if(isP)inner.textContent='💂🏼';
       else if(cell.type==='wall')inner.textContent='🧱';
       else if(cell.type==='door')inner.textContent='🚪';
-      else if(cell.entity){
-        if(cell.entity.startsWith('civ:')){
-          const civEmoji=cell.entity.slice(4);
-          inner.textContent=civEmoji;
-        } else {
-          inner.textContent=EM[cell.entity]||'❓';
-        }
-      }
+      else if(cell.entity)inner.textContent=EM[cell.entity]||'❓';
       d.appendChild(inner);
-      if(canM){const[rr,cc]=[r,c];d.onclick=()=>doMove(rr,cc);}
+      if(canM&&!BS){const[rr,cc]=[r,c];d.onclick=()=>doMove(rr,cc);}
       board.appendChild(d);
     }
   }
   document.getElementById('hpb').style.width=(S.hp/S.mhp*100)+'%';
-  document.getElementById('hpt').textContent=S.hp+'/'+S.mhp;
-  document.getElementById('goldt').textContent=S.gold;
-  document.getElementById('scoret').textContent=S.score;
+  document.getElementById('mpb').style.width=(S.mp/S.mmp*100)+'%';
+  document.getElementById('hpt').textContent=`HP:${S.hp}/${S.mhp} MP:${S.mp}/${S.mmp}`;
+  document.getElementById('keyt').textContent=S.keys;
   document.getElementById('flrt').textContent=S.totalRooms;
-  document.getElementById('rescuet').textContent=S.rescued;
   document.getElementById('atkt').textContent=S.atk;
+  document.getElementById('pott').textContent=S.potions;
 }
-
 function validMoves(){
+  if(BS)return[]; // 戰鬥中禁止移動
   const{pp,grid}=S;
   return[[-1,0],[1,0],[0,-1],[0,1]].map(([dr,dc])=>({r:pp.r+dr,c:pp.c+dc}))
     .filter(({r,c})=>r>=0&&r<ROWS&&c>=0&&c<COLS&&grid[r][c].type!=='wall');
 }
-
-function mv(dr,dc){if(!S)return;doMove(S.pp.r+dr,S.pp.c+dc);}
+function mv(dr,dc){if(!S||BS)return;doMove(S.pp.r+dr,S.pp.c+dc);}
 
 function doMove(r,c){
-  if(!S)return;
+  if(!S||BS)return;
   const{grid,pp}=S;
   if(r<0||r>=ROWS||c<0||c>=COLS)return;
   const cell=grid[r][c];
@@ -234,80 +484,337 @@ function doMove(r,c){
   if(cell.type==='door'){
     const dir=cell.dir;
     const[drv,dcv]=DRVEC[dir];
-    const enterDir=DIR_ENTER[dir];
     const nrx=S.rx+dcv,nry=S.ry+drv;
-    const gs=gsSnap();
-    addLog(`➡️ 穿越${dir}門…`);
-    setTimeout(()=>initRoom(nrx,nry,enterDir,gs),200);
+    const gs=globalStateSnapshot();
+    addLog(`➡️ 穿越${dir}方向的門…`);
+    setTimeout(()=>initRoom(nrx,nry,DIR_ENTER[dir],gs),200);
     return;
   }
   const en=cell.entity;
-  if(en==='ghost'||en==='skeleton'||en==='boss'){combat(r,c,en);return;}
+  if(en==='ghost'||en==='skeleton'||en==='boss'){startBattle(r,c,en);return;}
   grid[pp.r][pp.c].entity=null;
   pp.r=r;pp.c=c;
-  if(en==='purse'){
-    const g=3+Math.floor(Math.random()*5);
-    S.gold+=g;S.score+=g*2;
-    cell.entity=null;
-    addLog(`💰 撿到錢袋！+${g}金幣`);
-    floatAt(r,c,'+'+g+'G','yl');
-  } else if(en==='chest'){
-    const b=2+Math.floor(Math.random()*3);
-    S.atk+=b;S.score+=10;
-    cell.entity=null;
-    addLog(`📦 寶箱！攻擊+${b}，分數+10`);
-    floatAt(r,c,'+ATK','yl');
-  } else if(en==='potion'){
-    const h=4+Math.floor(Math.random()*5);
-    S.hp=Math.min(S.mhp,S.hp+h);
-    cell.entity=null;
-    addLog(`🧪 藥水！回復${h}HP`);
-    floatAt(r,c,'+'+h+'HP','gn');
-  } else if(en&&en.startsWith('civ:')){
-    const civEmoji=en.slice(4);
-    const isChild=civEmoji==='👧'||civEmoji==='🧒'||civEmoji==='👧🏽'||civEmoji==='🧒🏻';
-    const pts=isChild?50:30;
-    S.rescued++;S.score+=pts;
-    cell.entity=null;
-    const label=isChild?'孩童':'女性';
-    addLog(`${civEmoji} 救援${label}！分數+${pts} 🎉`);
-    floatAt(r,c,'救+'+pts,'yl');
-  }
+  if(en==='key'){S.keys++;cell.entity=null;addLog('🗝️ 撿到鑰匙！');}
+  else if(en==='chest'){const b=2+Math.floor(Math.random()*3);S.atk+=b;cell.entity=null;addLog(`📦 寶箱！攻擊+${b}`);}
+  else if(en==='potion'){S.potions++;cell.entity=null;addLog(`🧪 取得藥水！(共${S.potions}瓶)`);}
   render();
 }
 
-function combat(r,c,en){
-  const AHP={ghost:4,skeleton:7,boss:18};
-  const ADM={ghost:[2,4],skeleton:[3,6],boss:[6,11]};
+/* ══════════════════════════════
+   ── 回合制戰鬥系統 ──
+══════════════════════════════ */
+
+function startBattle(r,c,en){
+  const data=ENEMY_DATA[en];
   const cell=S.grid[r][c];
-  if(!cell.hp)cell.hp=AHP[en];
-  const dmg=S.atk;
-  cell.hp-=dmg;
-  floatAt(r,c,'-'+dmg,'rd');
-  const nm=en==='boss'?'👹BOSS':en==='ghost'?'👻':'💀';
-  addLog(`⚔️ 攻擊${nm} -${dmg}HP`);
-  if(cell.hp<=0){
-    const pts=en==='boss'?30:en==='skeleton'?10:5;
-    S.score+=pts;
-    cell.entity=null;cell.hp=0;
-    addLog(`💥 擊敗！分數+${pts}`);
-    S.grid[S.pp.r][S.pp.c].entity=null;
-    S.pp.r=r;S.pp.c=c;
-    render();return;
-  }
-  const[lo,hi]=ADM[en];
-  const edm=lo+Math.floor(Math.random()*(hi-lo+1));
-  S.hp-=edm;
-  floatAt(S.pp.r,S.pp.c,'-'+edm,'rd');
-  addLog(`💢 反擊 -${edm}HP 剩${Math.max(0,S.hp)}`);
-  if(S.hp<=0){
-    S.hp=0;render();
-    showOv('💀 陣亡！',`最終得分：${S.score}分 ／ 救援${S.rescued}人`,true);
-    return;
-  }
+  // 保留HP（可能已受傷）
+  if(!cell.hp) cell.hp=data.mhp;
+
+  BS={
+    er:r,ec:c,en,
+    name:data.name,icon:EM[en],
+    ehp:cell.hp,emhp:data.mhp,
+    turn:'player',
+    playerStatus:{burn:0,stun:0,regen:0,shield:0},
+    enemyStatus:{burn:0,stun:0},
+    skillMenuOpen:false,
+  };
+
+  openBattlePanel();
+  addLog(`⚔️ 遭遇 ${data.name}！回合制戰鬥開始！`,'battle');
   render();
 }
 
+function openBattlePanel(){
+  updateBattleUI();
+  document.getElementById('battle-panel').classList.add('active');
+}
+function closeBattlePanel(){
+  BS=null;
+  document.getElementById('battle-panel').classList.remove('active');
+  document.getElementById('skill-menu').classList.remove('open');
+}
+
+function updateBattleUI(){
+  if(!BS)return;
+  // 敵方
+  document.getElementById('battle-enemy-icon').textContent=BS.icon;
+  document.getElementById('battle-enemy-name').textContent=BS.name;
+  const pct=Math.max(0,BS.ehp/BS.emhp*100);
+  document.getElementById('battle-enemy-hpfill').style.width=pct+'%';
+  document.getElementById('battle-enemy-hptext').textContent=`HP: ${Math.max(0,BS.ehp)} / ${BS.emhp}`;
+
+  // 狀態標籤
+  const row=document.getElementById('battle-status-row');
+  row.innerHTML='';
+  const addTag=(label,cls)=>{const t=document.createElement('span');t.className='status-tag '+cls;t.textContent=label;row.appendChild(t);};
+  if(BS.playerStatus.burn>0) addTag(`🔥灼燒×${BS.playerStatus.burn}`,'burn');
+  if(BS.playerStatus.stun>0) addTag(`💫暈眩×${BS.playerStatus.stun}`,'stun');
+  if(BS.playerStatus.regen>0)addTag(`💚回復×${BS.playerStatus.regen}`,'regen');
+  if(BS.playerStatus.shield>0)addTag(`🛡護盾×${BS.playerStatus.shield}`,'shield');
+  if(BS.enemyStatus.burn>0)  addTag(`🔥敵灼燒×${BS.enemyStatus.burn}`,'burn');
+  if(BS.enemyStatus.stun>0)  addTag(`💫敵暈眩×${BS.enemyStatus.stun}`,'stun');
+
+  // 回合指示
+  const ti=document.getElementById('turn-indicator');
+  ti.textContent=BS.turn==='player'?'⚡ 你的回合':'💢 敵方行動中…';
+  ti.className='player-turn';
+  if(BS.turn==='enemy') ti.className='enemy-turn';
+
+  // 技能MP顯示
+  updateSkillButtons();
+
+  // 行動按鈕 disable
+  const isPlayer=BS.turn==='player';
+  const stunned=BS.playerStatus.stun>0;
+  document.getElementById('btn-attack').disabled=!isPlayer||stunned;
+  document.getElementById('btn-skill').disabled=!isPlayer||stunned;
+  document.getElementById('btn-item').disabled=!isPlayer;
+  document.getElementById('btn-flee').disabled=!isPlayer;
+}
+
+function updateSkillButtons(){
+  document.getElementById('sk-slash').disabled=S.mp<0;
+  document.getElementById('sk-fire').disabled=S.mp<3;
+  document.getElementById('sk-guard').disabled=S.mp<2;
+  document.getElementById('sk-regen').disabled=S.mp<4;
+}
+
+function toggleSkillMenu(){
+  if(!BS||BS.turn!=='player')return;
+  BS.skillMenuOpen=!BS.skillMenuOpen;
+  const m=document.getElementById('skill-menu');
+  BS.skillMenuOpen?m.classList.add('open'):m.classList.remove('open');
+  updateSkillButtons();
+}
+
+/* ─────────────────────────────
+   玩家行動
+───────────────────────────── */
+function battleAction(action){
+  if(!BS||BS.turn!=='player')return;
+  // 關閉技能選單
+  document.getElementById('skill-menu').classList.remove('open');
+  BS.skillMenuOpen=false;
+
+  let acted=false;
+
+  if(action==='attack'){
+    const dmg=calcPlayerDmg(1.0);
+    dealEnemyDmg(dmg,'⚔️ 攻擊');
+    acted=true;
+  }
+  else if(action==='slash'){
+    if(S.mp<0){addLog('MP 不足！');return;}
+    const dmg=calcPlayerDmg(2.0);
+    dealEnemyDmg(dmg,'⚔️ 斬擊');
+    acted=true;
+  }
+  else if(action==='fire'){
+    if(S.mp<3){addLog('MP 不足！');return;}
+    S.mp=Math.max(0,S.mp-3);
+    const dmg=calcPlayerDmg(0.8);
+    dealEnemyDmg(dmg,'🔥 火焰術');
+    BS.enemyStatus.burn=3;
+    addLog('🔥 敵人陷入灼燒狀態（3回合）！','skill');
+    acted=true;
+  }
+  else if(action==='guard'){
+    if(S.mp<2){addLog('MP 不足！');return;}
+    S.mp=Math.max(0,S.mp-2);
+    BS.playerStatus.shield=1;
+    addLog('🛡️ 防禦姿態！本回合受到傷害減半','skill');
+    acted=true;
+  }
+  else if(action==='regen'){
+    if(S.mp<4){addLog('MP 不足！');return;}
+    S.mp=Math.max(0,S.mp-4);
+    BS.playerStatus.regen=3;
+    addLog('💚 恢復術！未來3回合持續回復HP','skill');
+    acted=true;
+  }
+  else if(action==='item'){
+    if(S.potions<=0){addLog('🧪 沒有藥水了！');return;}
+    S.potions--;
+    const h=8+Math.floor(Math.random()*8);
+    S.hp=Math.min(S.mhp,S.hp+h);
+    floatAt(S.pp.r,S.pp.c,'+'+h,'gn');
+    addLog(`🧪 使用藥水 回復 ${h} HP！（剩${S.potions}瓶）`,'heal');
+    acted=true;
+  }
+  else if(action==='flee'){
+    const chance=BS.en==='boss'?20:45;
+    if(Math.random()*100<chance){
+      addLog('💨 成功逃跑！','escape');
+      BS.escaped=true;
+      closeBattlePanel();
+      // 玩家退後一格
+      retreatPlayer();
+      render();
+      return;
+    }else{
+      addLog('💨 逃跑失敗！');
+      acted=true; // 消耗回合
+    }
+  }
+
+  if(!acted)return;
+
+  if(checkBattleEnd())return;
+
+  // 回合切換 → 敵方
+  BS.turn='enemy';
+  render();updateBattleUI();
+  setTimeout(enemyTurn,700);
+}
+
+function calcPlayerDmg(mult){
+  const base=S.atk;
+  const bonus=Math.floor(Math.random()*Math.ceil(base*0.4));
+  return Math.max(1,Math.round((base+bonus)*mult));
+}
+
+function dealEnemyDmg(dmg,label){
+  BS.ehp-=dmg;
+  S.grid[BS.er][BS.ec].hp=BS.ehp;
+  floatAt(BS.er,BS.ec,'-'+dmg,'rd');
+  addLog(`${label} → 對敵造成 ${dmg} 傷害`,'dmg');
+}
+
+/* ─────────────────────────────
+   敵方回合
+───────────────────────────── */
+function enemyTurn(){
+  if(!BS)return;
+
+  // 敵方灼燒
+  if(BS.enemyStatus.burn>0){
+    const bdmg=Math.floor(S.atk*0.4)+1;
+    BS.ehp-=bdmg;
+    S.grid[BS.er][BS.ec].hp=BS.ehp;
+    BS.enemyStatus.burn--;
+    floatAt(BS.er,BS.ec,'🔥-'+bdmg,'yw');
+    addLog(`🔥 灼燒傷害 ${bdmg}（剩${BS.enemyStatus.burn}回合）`,'dmg');
+    if(checkBattleEnd()){return;}
+  }
+
+  // 玩家回復
+  if(BS.playerStatus.regen>0){
+    const rh=3+Math.floor(Math.random()*3);
+    S.hp=Math.min(S.mhp,S.hp+rh);
+    BS.playerStatus.regen--;
+    floatAt(S.pp.r,S.pp.c,'+'+rh,'gn');
+    addLog(`💚 恢復 ${rh} HP（剩${BS.playerStatus.regen}回合）`,'heal');
+  }
+
+  // 玩家被暈眩時跳過
+  if(BS.playerStatus.stun>0){
+    BS.playerStatus.stun--;
+    addLog(`💫 你被暈眩！跳過此回合（剩${BS.playerStatus.stun}回合）`);
+  } else {
+    // 敵方攻擊
+    if(!(BS.enemyStatus.stun>0)){
+      const data=ENEMY_DATA[BS.en];
+      const[lo,hi]=data.atk;
+      let edm=lo+Math.floor(Math.random()*(hi-lo+1));
+      // 護盾減傷
+      if(BS.playerStatus.shield>0){
+        edm=Math.ceil(edm/2);
+        BS.playerStatus.shield--;
+        addLog(`🛡️ 護盾減傷！`,'skill');
+      }
+      S.hp=Math.max(0,S.hp-edm);
+      floatAt(S.pp.r,S.pp.c,'-'+edm,'rd');
+      addLog(`💢 ${BS.name} 攻擊你 -${edm} HP（剩 ${S.hp}）`,'dmg');
+      if(S.hp<=0){
+        render();updateBattleUI();
+        setTimeout(()=>{closeBattlePanel();showOv('💀 陣亡！','衛兵倒下了…',true);},400);
+        return;
+      }
+    }else{
+      BS.enemyStatus.stun--;
+      addLog(`💫 敵人被暈眩！跳過此回合`);
+    }
+  }
+
+  // 敵方MP回復（BOSS偶爾施展特殊技）
+  if(BS.en==='boss'&&Math.random()<0.3){
+    bossSpecial();
+    if(checkBattleEnd())return;
+  }
+
+  BS.turn='player';
+  render();updateBattleUI();
+}
+
+function bossSpecial(){
+  const roll=Math.random();
+  if(roll<0.4){
+    // 暈眩玩家
+    BS.playerStatus.stun=1;
+    addLog('👹 魔王施展暈眩咒！你下回合無法行動！','dmg');
+  }else if(roll<0.7){
+    // 猛烈攻擊
+    const edm=Math.floor(ENEMY_DATA.boss.atk[1]*1.5);
+    S.hp=Math.max(0,S.hp-edm);
+    floatAt(S.pp.r,S.pp.c,'-'+edm,'rd');
+    addLog(`👹 魔王猛擊！-${edm} HP！`,'dmg');
+  }else{
+    // 自我回復
+    const rh=6;
+    BS.ehp=Math.min(BS.emhp,BS.ehp+rh);
+    S.grid[BS.er][BS.ec].hp=BS.ehp;
+    floatAt(BS.er,BS.ec,'+'+rh,'gn');
+    addLog(`👹 魔王恢復 ${rh} HP！`,'heal');
+  }
+}
+
+/* ─────────────────────────────
+   戰鬥結束判斷
+───────────────────────────── */
+function checkBattleEnd(){
+  if(!BS)return true;
+  if(BS.ehp<=0){
+    const data=ENEMY_DATA[BS.en];
+    addLog(`💥 擊敗 ${BS.name}！獲得 ${data.xp} 經驗！`,'battle');
+    // 移動玩家到敵人格
+    S.grid[S.pp.r][S.pp.c].entity=null;
+    S.grid[BS.er][BS.ec].entity=null;
+    S.grid[BS.er][BS.ec].hp=0;
+    S.pp.r=BS.er;S.pp.c=BS.ec;
+    // 升級 MP
+    S.mp=Math.min(S.mmp,S.mp+2);
+    closeBattlePanel();
+    render();
+    return true;
+  }
+  if(S.hp<=0){
+    render();updateBattleUI();
+    setTimeout(()=>{closeBattlePanel();showOv('💀 陣亡！','衛兵倒下了…',true);},400);
+    return true;
+  }
+  return false;
+}
+
+function retreatPlayer(){
+  // 找玩家周圍空格退後
+  const dirs=[[-1,0],[1,0],[0,-1],[0,1]];
+  for(const[dr,dc] of dirs){
+    const nr=S.pp.r+dr,nc=S.pp.c+dc;
+    if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS){
+      const cell=S.grid[nr][nc];
+      if(cell.type==='floor'&&!cell.entity){
+        S.grid[S.pp.r][S.pp.c].entity=null;
+        S.pp.r=nr;S.pp.c=nc;
+        return;
+      }
+    }
+  }
+}
+
+/* ══════════════════════════════
+   浮動文字、日誌、覆蓋層
+══════════════════════════════ */
 function floatAt(r,c,txt,cls){
   const board=document.getElementById('board');
   const idx=r*COLS+c;
@@ -316,14 +823,34 @@ function floatAt(r,c,txt,cls){
   const s=document.createElement('span');
   s.className='float-dmg '+cls;s.textContent=txt;
   cell.appendChild(s);
-  setTimeout(()=>s.remove(),700);
+  setTimeout(()=>s.remove(),650);
 }
 
-function addLog(msg,clear=false){
+function addLog(msg,type=''){
   const el=document.getElementById('log');
-  if(clear)el.innerHTML='';
-  const p=document.createElement('p');p.textContent=msg;el.appendChild(p);
+  const p=document.createElement('p');
+  p.textContent=msg;
+  if(type==='battle') p.className='battle-line';
+  else if(type==='dmg') p.className='dmg-line';
+  else if(type==='heal') p.className='heal-line';
+  else if(type==='skill') p.className='skill-line';
+  else if(type==='escape') p.className='escape-line';
+  el.appendChild(p);
   el.scrollTop=el.scrollHeight;
+}
+
+function addLog(msg, type_or_clear){
+  const el=document.getElementById('log');
+  if(type_or_clear===true){el.innerHTML='';}
+  const p=document.createElement('p');p.textContent=msg;
+  if(typeof type_or_clear==='string'){
+    if(type_or_clear==='battle')p.className='battle-line';
+    else if(type_or_clear==='dmg')p.className='dmg-line';
+    else if(type_or_clear==='heal')p.className='heal-line';
+    else if(type_or_clear==='skill')p.className='skill-line';
+    else if(type_or_clear==='escape')p.className='escape-line';
+  }
+  el.appendChild(p);el.scrollTop=el.scrollHeight;
 }
 
 function showOv(title,sub,dead=false){
@@ -332,67 +859,86 @@ function showOv(title,sub,dead=false){
   if(!ov){ov=document.createElement('div');ov.id='ov';bw.appendChild(ov);}
   ov.innerHTML=`<h2>${title}</h2><p>${sub}</p>`+(dead?`<button onclick="restart()">🔄 再試一次</button>`:'');
 }
-
 function removeOv(){const o=document.getElementById('ov');if(o)o.remove();}
 
+/* ══════════════════════════════
+   小地圖
+══════════════════════════════ */
 function drawMinimap(){
   const canvas=document.getElementById('minimap-canvas');
   const ctx=canvas.getContext('2d');
   const W=canvas.width,H=canvas.height;
   ctx.clearRect(0,0,W,H);
-  const keys=Object.keys(mapData);
-  if(!keys.length)return;
+  const keys=Object.keys(mapData);if(!keys.length)return;
   const xs=keys.map(k=>parseInt(k.split(',')[0]));
   const ys=keys.map(k=>parseInt(k.split(',')[1]));
   const minX=Math.min(...xs),maxX=Math.max(...xs);
   const minY=Math.min(...ys),maxY=Math.max(...ys);
   const spanX=maxX-minX+1,spanY=maxY-minY+1;
-  const cs=Math.min(Math.floor((W-12)/Math.max(spanX,1)),Math.floor((H-12)/Math.max(spanY,1)),28);
+  const pad=6;
+  const cs=Math.min(Math.floor((W-pad*2)/Math.max(spanX,1)),28,
+                    Math.floor((H-pad*2)/Math.max(spanY,1)));
   const gapX=Math.floor((W-cs*spanX)/2);
   const gapY=Math.floor((H-cs*spanY)/2);
   keys.forEach(k=>{
     const[rx,ry]=[parseInt(k.split(',')[0]),parseInt(k.split(',')[1])];
     const px=gapX+(rx-minX)*cs,py=gapY+(ry-minY)*cs;
-    const isCur=k===currentRoomKey;
+    const isCurrent=k===currentRoomKey;
     const room=mapData[k];
-    const inner=Math.floor(cs*0.56);
+    const inner=Math.floor(cs*0.55);
     const ix=px+Math.floor((cs-inner)/2),iy=py+Math.floor((cs-inner)/2);
-    ctx.fillStyle=isCur?'#3a5a3a':'#2a2a2a';
-    ctx.strokeStyle=isCur?'#5faf5f':'#444';
-    ctx.lineWidth=isCur?1.5:1;
+    ctx.fillStyle=isCurrent?'#3a5a3a':'#2a2a2a';
+    ctx.strokeStyle=isCurrent?'#5faf5f':'#444';
+    ctx.lineWidth=isCurrent?1.5:1;
     ctx.beginPath();ctx.roundRect(ix,iy,inner,inner,2);ctx.fill();ctx.stroke();
-    const cx2=px+cs/2,cy2=py+cs/2;
-    if(room.openDirs)room.openDirs.forEach(dir=>{
-      ctx.fillStyle='#666';
-      const half=Math.floor((cs-inner)/2);
-      if(dir==='N')ctx.fillRect(cx2-1.5,py,3,half+1);
-      else if(dir==='S')ctx.fillRect(cx2-1.5,iy+inner-1,3,half+1);
-      else if(dir==='W')ctx.fillRect(px,cy2-1.5,half+1,3);
-      else if(dir==='E')ctx.fillRect(ix+inner-1,cy2-1.5,half+1,3);
-    });
-    if(isCur){
+    if(room.openDirs){
+      room.openDirs.forEach(dir=>{
+        ctx.fillStyle='#666';
+        const cx2=px+cs/2,cy2=py+cs/2;
+        if(dir==='N')ctx.fillRect(cx2-1.5,py,3,Math.floor((cs-inner)/2)+1);
+        else if(dir==='S')ctx.fillRect(cx2-1.5,iy+inner-1,3,Math.ceil((cs-inner)/2)+1);
+        else if(dir==='W')ctx.fillRect(px,cy2-1.5,Math.floor((cs-inner)/2)+1,3);
+        else if(dir==='E')ctx.fillRect(ix+inner-1,cy2-1.5,Math.ceil((cs-inner)/2)+1,3);
+      });
+    }
+    if(isCurrent){
       ctx.fillStyle='#aaffaa';
-      ctx.font=`bold ${Math.max(8,Math.floor(inner*.55))}px monospace`;
+      ctx.font=`bold ${Math.max(8,Math.floor(inner*0.55))}px monospace`;
       ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText('☆',ix+inner/2,iy+inner/2);
     }
   });
 }
 
-function restart(){removeOv();mapData={};currentRoomKey='0,0';initRoom(0,0,null,null);}
-function skipFloor(){removeOv();const gs=S?gsSnap():null;mapData={};currentRoomKey='0,0';if(gs)gs.totalRooms=(gs.totalRooms||0)+3;initRoom(0,0,null,gs);}
+/* ══════════════════════════════
+   重新開始 / 跳層
+══════════════════════════════ */
+function restart(){removeOv();closeBattlePanel();mapData={};currentRoomKey='0,0';initRoom(0,0,null,null);}
+function skipFloor(){
+  removeOv();closeBattlePanel();
+  const gs=S?globalStateSnapshot():null;
+  mapData={};currentRoomKey='0,0';
+  if(gs)gs.totalRooms=(gs.totalRooms||0)+3;
+  initRoom(0,0,null,gs);
+}
 window.restart=restart;window.skipFloor=skipFloor;
+window.battleAction=battleAction;
+window.toggleSkillMenu=toggleSkillMenu;
 
+/* ══════════════════════════════
+   搖桿
+══════════════════════════════ */
 (function setupJoystick(){
   const wrap=document.getElementById('js-wrap');
   const base=document.getElementById('js-base');
   const stick=document.getElementById('js-stick');
-  const DEAD=12,R_BASE=60,R_STICK=24;
+  let R_BASE,R_STICK,DEAD;
+  function updateSizes(){R_BASE=base.offsetWidth/2;R_STICK=stick.offsetWidth/2;DEAD=Math.max(10,R_BASE*0.2);}
   let dragging=false,lastDir=null,moveTimer=null;
   function getDir(dx,dy){if(Math.sqrt(dx*dx+dy*dy)<DEAD)return null;return Math.abs(dx)>Math.abs(dy)?(dx>0?[0,1]:[0,-1]):(dy>0?[1,0]:[-1,0]);}
   function setStick(dx,dy){const dist=Math.min(Math.sqrt(dx*dx+dy*dy),R_BASE-R_STICK);const a=Math.atan2(dy,dx);stick.style.transform=`translate(calc(-50% + ${dist*Math.cos(a)}px),calc(-50% + ${dist*Math.sin(a)}px))`;}
   function resetStick(){stick.style.transform='translate(-50%,-50%)';}
-  function process(dx,dy){setStick(dx,dy);const dir=getDir(dx,dy);if(!dir){lastDir=null;clearInterval(moveTimer);moveTimer=null;return;}if(lastDir&&lastDir[0]===dir[0]&&lastDir[1]===dir[1])return;lastDir=dir;clearInterval(moveTimer);mv(dir[0],dir[1]);moveTimer=setInterval(()=>mv(dir[0],dir[1]),220);}
+  function process(dx,dy){updateSizes();setStick(dx,dy);const dir=getDir(dx,dy);if(!dir){lastDir=null;clearInterval(moveTimer);moveTimer=null;return;}if(lastDir&&lastDir[0]===dir[0]&&lastDir[1]===dir[1])return;lastDir=dir;clearInterval(moveTimer);mv(dir[0],dir[1]);moveTimer=setInterval(()=>mv(dir[0],dir[1]),220);}
   function coords(e){const pt=e.touches?e.touches[0]:e;const br=base.getBoundingClientRect();return[pt.clientX-br.left-br.width/2,pt.clientY-br.top-br.height/2];}
   wrap.addEventListener('mousedown',e=>{dragging=true;process(...coords(e));});
   window.addEventListener('mousemove',e=>{if(!dragging)return;process(...coords(e));});
@@ -402,10 +948,33 @@ window.restart=restart;window.skipFloor=skipFloor;
   window.addEventListener('touchend',()=>{dragging=false;resetStick();lastDir=null;clearInterval(moveTimer);moveTimer=null;});
 })();
 
+/* ══════════════════════════════
+   鍵盤 & 戰鬥快捷鍵
+══════════════════════════════ */
 document.addEventListener('keydown',e=>{
-  if(e.key==='ArrowUp')mv(-1,0);else if(e.key==='ArrowDown')mv(1,0);
-  else if(e.key==='ArrowLeft')mv(0,-1);else if(e.key==='ArrowRight')mv(0,1);
+  if(BS){
+    if(e.key==='1'||e.key==='a')battleAction('attack');
+    else if(e.key==='2'||e.key==='s')toggleSkillMenu();
+    else if(e.key==='3'||e.key==='d')battleAction('item');
+    else if(e.key==='4'||e.key==='f')battleAction('flee');
+    return;
+  }
+  if(e.key==='ArrowUp')mv(-1,0);
+  else if(e.key==='ArrowDown')mv(1,0);
+  else if(e.key==='ArrowLeft')mv(0,-1);
+  else if(e.key==='ArrowRight')mv(0,1);
 });
-window.addEventListener('resize',()=>{calcSize();if(S)render();});
+
+/* ══════════════════════════════
+   視窗縮放
+══════════════════════════════ */
+let resizeTimer;
+window.addEventListener('resize',()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer=setTimeout(()=>{calcSize();if(S){render();drawMinimap();}},80);
+});
+
 setTimeout(()=>{calcSize();initRoom(0,0,null,null);},80);
 </script>
+</body>
+</html>
